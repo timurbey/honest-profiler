@@ -82,7 +82,9 @@ set(SOURCE_FILES
     ${SRC}/thread_map.h
     ${SRC}/thread_map.cpp
     ${SRC}/concurrent_map.h
-    ${SRC}/concurrent_map.cpp)
+    ${SRC}/concurrent_map.cpp
+    ${SRC}/buffer_reader.cpp
+    ${SRC}/buffer_reader.h)
 
 set(TEST_FILES
     ${SRC_TEST}/fixtures.h
@@ -144,7 +146,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GLOBAL_WARNINGS} ${GLOBAL_COPTS} -pthr
 
 add_library(${OUTPUT} SHARED ${SOURCE_FILES})
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD") 
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
     target_link_libraries(${OUTPUT} ${JAVA_JVM_LIBRARY} rt)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(${OUTPUT} ${JAVA_JVM_LIBRARY} dl)
