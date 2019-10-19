@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="asgct-wrapper" default="compile">
+	<target name="init">
+    <property name="package.dir" value="asgct"/>
+    <property name="src.dir" value="src/main/java"/>
+    <property name="build.dir" value="build"/>
+    <property name="build.classes.dir" value="${build.dir}/classes"/>
+    <property name="runtime.jar" location="asgct.jar"/>
+  </target>
+
+	<target name="clean" depends="init" description="remove build files created this script">
+		<delete dir="${build.dir}"/>
+		<delete file="asgct.jar"/>
+  </target>
+
+	<target name="compile" depends="init" description="compile chappie source">
+		<mkdir dir="${build.classes.dir}"/>
+		<javac
+      source="1.9" target="1.9"
+      srcdir="${src.dir}"
+      destdir="${build.classes.dir}"
+		>
+		</javac>
+		<!-- <copy file="build/liblagent.so" todir="build/classes/asgct"/> -->
+    <!-- <copy todir="build">
+      <fileset dir="src/main/cpp/" includes="*.h"/>
+    </copy> -->
+	</target>
+
+  <target name="jar" depends="compile">
+		<jar jarfile="${runtime.jar}" basedir="${build.classes.dir}"/>
+  </target>
+
+	<target name="test">
+		<exec command="java -agentpath:build/liblagent.so -jar ../chappie-dev/wrapper/jar/dacapo-evaluation-git.jar sunflow"/>
+  </target>
+</project>
