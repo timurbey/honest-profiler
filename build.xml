@@ -2,7 +2,7 @@
 <project name="asgct-wrapper" default="compile">
 	<target name="init">
     <property name="package.dir" value="asgct"/>
-    <property name="src.dir" value="src/main/java"/>
+    <property name="src.dir" value="src/main/asgct"/>
     <property name="build.dir" value="build"/>
     <property name="build.classes.dir" value="${build.dir}/classes"/>
     <property name="runtime.jar" location="asgct.jar"/>
@@ -13,7 +13,15 @@
 		<delete file="asgct.jar"/>
   </target>
 
-	<target name="compile" depends="init" description="compile chappie source">
+	<target name="setup" depends="init" description="remove build files created this script">
+		<mkdir dir="${build.classes.dir}"/>
+	</target>
+
+	<target name="hp" depends="setup" description="compile chappie source">
+		<exec command="make lagent"/>
+	</target>
+
+	<target name="compile" depends="setup" description="compile chappie source">
 		<mkdir dir="${build.classes.dir}"/>
 		<javac
       source="1.9" target="1.9"
@@ -21,17 +29,14 @@
       destdir="${build.classes.dir}"
 		>
 		</javac>
-		<!-- <copy file="build/liblagent.so" todir="build/classes/asgct"/> -->
-    <!-- <copy todir="build">
-      <fileset dir="src/main/cpp/" includes="*.h"/>
-    </copy> -->
 	</target>
 
-  <target name="jar" depends="compile">
+  <target name="jar" depends="hp,compile">
+		<copy file="build/liblagent.so" todir="build/classes/asgct"/>
 		<jar jarfile="${runtime.jar}" basedir="${build.classes.dir}"/>
   </target>
 
-	<target name="test">
-		<exec command="java -agentpath:build/liblagent.so -jar ../chappie-dev/wrapper/jar/dacapo-evaluation-git.jar sunflow"/>
+	<target name="test" depends="jar">
+		<exec command="java -agentpath:build/liblagent.so -cp asgct.jar asgct.ASGCTReader"/>
   </target>
 </project>

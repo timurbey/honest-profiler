@@ -2,6 +2,7 @@
 #define BUFFER_READER_H
 
 #include <jni.h>
+#include <jvmti.h>
 #include "circular_queue.h"
 
 using std::string;
@@ -19,15 +20,15 @@ public:
 private:
   jvmtiEnv *const jvmti_;
 
-  vector<int> timestamps;
+  vector<long> timestamps;
   vector<string> ids;
   vector<std::vector<jmethodID>> traces;
 
   string lookUpMethod(jmethodID);
 };
 
-// extern void setupReader(JNIEnv *env, Reader *reader);
-//
-// extern "C" JNIEXPORT jstring JNICALL Java_asgct_ASGCTReader_tracePop(JNIEnv *env, jclass);
+extern void setupReader(JNIEnv *, BufferReader *);
+
+extern "C" JNIEXPORT jstring JNICALL Java_asgct_ASGCTReader_pop(JNIEnv *, jclass);
 
 #endif // BUFFER_READER_H

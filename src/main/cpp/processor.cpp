@@ -88,6 +88,8 @@ bool Processor::start(JNIEnv *jniEnv) {
     TRACE(Processor, kTraceProcessorStart);
     jvmtiError result;
 
+    setupReader(jniEnv, &reader_);
+
     std::cout << "Starting sampling\n";
     isRunning_.store(true, std::memory_order_relaxed); // sequential
     workerDone.test_and_set(std::memory_order_relaxed); // initial is true
@@ -97,12 +99,12 @@ bool Processor::start(JNIEnv *jniEnv) {
         jthread thread = newThread(jniEnv, "Honest Profiler Processing Thread");
         jvmtiStartFunction callback = callbackToRunProcessor;
         result = jvmti_->RunAgentThread(thread, callback, this, JVMTI_THREAD_NORM_PRIORITY);
-    
+
         if (result != JVMTI_ERROR_NONE) {
             logError("ERROR: Running agent thread failed with: %d\n", result);
         }
         return handler.updateSigprofInterval();
-    } 
+    }
     workerDone.clear(std::memory_order_relaxed);
     return true;
 }
@@ -115,7 +117,19 @@ void Processor::stop() {
     std::cout << "Stopping sampling\n";
     while (workerDone.test_and_set(std::memory_order_seq_cst)) sched_yield();
     signal(SIGPROF, SIG_IGN);
-}
+
+    // while(buffer.pop());
+    // while(true) {
+    //   vector<string> record = reader_.pop();
+    //   if (record.size() == 0)
+    //     break;
+    //   else {
+    //     for (int i = 0; i < record.size(); i++)
+    //       std::cout << record[i];
+    //     std::cout << std::endl;
+    //   }
+    // }
+  }
 
 bool Processor::isRunning() const {
     TRACE(Processor, kTraceProcessorRunning);

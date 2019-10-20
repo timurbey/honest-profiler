@@ -4,6 +4,7 @@
 #include <jvmti.h>
 #include "common.h"
 #include "log_writer.h"
+#include "buffer_reader.h"
 #include "signal_handler.h"
 
 #include "trace.h"
@@ -19,9 +20,18 @@ TRACE_DECLARE(Processor, kTraceProcessorTotal);
 class Processor {
 
 public:
-    explicit Processor(jvmtiEnv* jvmti, LogWriter& logWriter, const ConfigurationOptions &conf)
-        : jvmti_(jvmti), config(conf), logWriter_(logWriter), 
-          buffer(logWriter_, config.maxFramesToCapture), 
+    // explicit Processor(jvmtiEnv* jvmti, LogWriter& logWriter, const ConfigurationOptions &conf)
+    //     : jvmti_(jvmti), config(conf), logWriter_(logWriter),
+    //       buffer(logWriter_, config.maxFramesToCapture),
+    //       handler(config.samplingIntervalMin, config.samplingIntervalMax),
+    //       isRunning_(false) {
+    //     interval_ = Size * config.samplingIntervalMin / 1000 / 2;
+    //     interval_ = interval_ > 0 ? interval_ : 1;
+    // }
+
+    explicit Processor(jvmtiEnv* jvmti, BufferReader& reader, const ConfigurationOptions &conf)
+        : jvmti_(jvmti), config(conf), reader_(reader),
+          buffer(reader_, config.maxFramesToCapture),
           handler(config.samplingIntervalMin, config.samplingIntervalMax),
           isRunning_(false) {
         interval_ = Size * config.samplingIntervalMin / 1000 / 2;
@@ -43,7 +53,8 @@ private:
 
     const ConfigurationOptions &config;
 
-    LogWriter& logWriter_;
+    // LogWriter& logWriter_;
+    BufferReader& reader_;
     CircularQueue buffer;
     SignalHandler handler;
 

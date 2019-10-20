@@ -20,27 +20,29 @@ void BufferReader::record(const timespec &ts, const JVMPI_CallTrace &trace, Thre
 }
 
 vector<string> BufferReader::pop() {
-  string message;
-  vector<string> vec;
+  if (!timestamps.empty()) {
+    vector<jmethodID> trace = traces.front();
+    if (trace.size() == 0)
+      return vector<string>();
 
-  vec.push_back(std::to_string(timestamps.front()));
-  vec.push_back(ids.front());
+    string message;
+    for (int i = 0; i < trace.size(); i++)
+      message.append(lookUpMethod(trace[i])).append(";;");
 
-  vector<jmethodID> trace = traces.front();
-  for (int i = 0; i < trace.size(); i++) {
-      jmethodID method_id = trace[i];
-      string method = lookUpMethod(method_id);
-      message.append(method);
-      message.append(";");
-      break;
+    vector<string> vec;
+
+    vec.push_back(std::to_string(timestamps.front()));
+    vec.push_back(ids.front());
+    vec.push_back(message);
+
+    timestamps.erase(timestamps.begin());
+    ids.erase(ids.begin());
+    traces.erase(traces.begin());
+
+    return vec;
+  } else {
+    return vector<string>();
   }
-  vec.push_back(message);
-
-  timestamps.erase(timestamps.begin());
-  ids.erase(ids.begin());
-  traces.erase(traces.begin());
-
-  return vec;
 }
 
 string BufferReader::lookUpMethod(jmethodID method_id) {
@@ -60,38 +62,24 @@ string BufferReader::lookUpMethod(jmethodID method_id) {
   return method;
 }
 
-// extern void setupBufferReader(JNIEnv *env, Reader *reader) {
-//     printf("setting up the field . . .");
-//     jclass c = env->FindClass("Lasgct/ASGCTReader");
-//     jfieldID f = env->GetStaticFieldID(c, "reader_ptr", "J");
-//     env->SetStaticLongField(c, f, (jlong)reader);
-//     printf("set the field!\n");
-// }
-//
-// extern "C" JNIEXPORT jstring JNICALL Java_asgct_ASGCTReader_tracePop(JNIEnv *env, jclass jcls) {
-//   printf("grabbing a trace . . .");
-//   jclass c = env->FindClass("Lasgct/ASGCTReader");
-//   jfieldID f = env->GetStaticFieldID(c, "reader_ptr", "J");
-//   jlong reader_ptr = env->GetStaticLongField(c, f);
-//   Reader* reader = (Reader* )reader_ptr;
-//
-//   jstring ret_record;
-//   if (reader != nullptr && reader->size() > 0) {
-//     vector<string> record = reader->pop();
-//
-//     string message;
-//     message.append(record[0].c_str()).append(",");
-//     message.append(record[1].c_str()).append(",");
-//     message.append(record[2].c_str()).append(",");
-//
-//     // printf("%s", message.c_str());
-//     ret_record = env->NewStringUTF(message.c_str());
-//
-//     printf("grabbed a trace!");
-//     return ret_record;
-//   } else {
-//     printf("grabbed nothing!");
-//     ret_record = env->NewStringUTF("");
-//     return ret_record;
-//   }
-// }
+extern void setupReader(JNIEnv *env, BufferReader *reader) {
+    jclass c = env->FindClass("asgct/ASGCTReader");
+    jfieldID f = env->GetStaticFieldID(c, "reader_ptr", "J");
+    env->SetStaticLongField(c, f, (jlong)reader);
+}
+
+extern "C" JNIEXPORT jstring JNICALL Java_asgct_ASGCTReader_pop(JNIEnv *env, jclass jcls) {
+  jclass c = env->FindClass("asgct/ASGCTReader");
+  jfieldID f = env->GetStaticFieldID(c, "reader_ptr", "J");
+  BufferReader* reader = (BufferReader*)env->GetStaticLongField(c, f);
+
+  vector<string> record = reader->pop();
+  string message;
+  for (int i = 0; i < record.size(); i++) {
+    message.append(record[i]);
+    if (i + 1 < record.size())
+      message.append(",");
+  }
+
+  return env->NewStringUTF(message.c_str());
+}
