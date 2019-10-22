@@ -201,7 +201,12 @@ void JNICALL OnThreadStart(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread)
                 }
             }
         }
-        threadMap.put(jni_env, thread_info.name);
+        // Try and save the actual thread id
+        jclass cls = jni_env->FindClass("java/lang/Thread");
+        jmethodID mthd = jni_env->GetMethodID(cls, "getId", "()J");
+        jlong jid = jni_env->CallLongMethod(thread, mthd);
+
+        threadMap.put(jni_env, thread_info.name, jid);
     }
     pthread_sigmask(SIG_UNBLOCK, &prof_signal_mask, NULL);
 }

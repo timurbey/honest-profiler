@@ -46,11 +46,12 @@ public:
 
 struct ThreadBucket {
   const int tid;
+  const jlong jid;
   std::string name;
   std::atomic_int refs;
   map::GC::EpochType localEpoch;
 
-  explicit ThreadBucket(int id, const char *n) : tid(id), name(n), refs(1), localEpoch(GCHelper::attach()) {}
+  explicit ThreadBucket(int id, int jid, const char *n) : tid(id), jid(jid), name(n), refs(1), localEpoch(GCHelper::attach()) {}
 
   int release() { return refs.fetch_sub(1, std::memory_order_acquire); }
 
@@ -117,10 +118,10 @@ private:
 public:
   explicit ThreadMapBase(int capacity = kInitialMapSize) : map(capacity) {}
 
-  void put(JNIEnv *jni_env, const char *name) { put(jni_env, name, gettid()); }
+  void put(JNIEnv *jni_env, const char *name, jlong jid) { put(jni_env, name, gettid(), jid); }
 
-  void put(JNIEnv *jni_env, const char *name, int tid) {
-    ThreadBucket *info = new ThreadBucket(tid, name);
+  void put(JNIEnv *jni_env, const char *name, int tid, jlong jid) {
+    ThreadBucket *info = new ThreadBucket(tid, jid, name);
     ThreadBucketPtr oldRef((ThreadBucket *)map.put((map::KeyType)jni_env, (map::ValueType)info)); // weak ref to object
     GCHelper::safepoint(info->localEpoch); // each thread inserts once
   }

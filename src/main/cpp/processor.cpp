@@ -88,7 +88,7 @@ bool Processor::start(JNIEnv *jniEnv) {
     TRACE(Processor, kTraceProcessorStart);
     jvmtiError result;
 
-    setupReader(jniEnv, &reader_);
+    setReader(jniEnv, &reader_);
 
     std::cout << "Starting sampling\n";
     isRunning_.store(true, std::memory_order_relaxed); // sequential
@@ -117,18 +117,6 @@ void Processor::stop() {
     std::cout << "Stopping sampling\n";
     while (workerDone.test_and_set(std::memory_order_seq_cst)) sched_yield();
     signal(SIGPROF, SIG_IGN);
-
-    // while(buffer.pop());
-    // while(true) {
-    //   vector<string> record = reader_.pop();
-    //   if (record.size() == 0)
-    //     break;
-    //   else {
-    //     for (int i = 0; i < record.size(); i++)
-    //       std::cout << record[i];
-    //     std::cout << std::endl;
-    //   }
-    // }
   }
 
 bool Processor::isRunning() const {
