@@ -2,6 +2,7 @@ package asgct;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Arrays;
 
 public class ASGCTReader {
@@ -19,26 +20,6 @@ public class ASGCTReader {
     public long id;
     public String name;
     public String[] trace;
-
-    ASGCTFrame(long timestamp, long id, String name, String[] trace) {
-      this.timestamp = timestamp;
-      this.id = id;
-      this.name = name;
-      this.trace = trace;
-
-      for (int i = 0; i < trace.length; i++)
-        this.trace[i] = this.trace[i].substring(1, this.trace[i].length()).replace(";", ".").replace("/", ".");
-    }
-
-    ASGCTFrame(Object[] items) {
-      this.timestamp = (Long)items[0];
-      this.id = (Long)items[1];
-      this.name = (String)items[2];
-      this.trace = (String[])items[3];
-
-      for (int i = 0; i < trace.length; i++)
-        this.trace[i] = this.trace[i].substring(1, this.trace[i].length()).replace(";", ".").replace("/", ".");
-    }
 
     ASGCTFrame(String frame) {
       String[] items = frame.split(",");
@@ -65,69 +46,66 @@ public class ASGCTReader {
     }
   }
 
-  // static Runnable profiler = new Runnable() {
-  //   @Override
-  //   public void run() {
-  //     ArrayList<ASGCTFrame> frames = new ArrayList<ASGCTFrame>();
-  //     long elapsed = 0;
-  //
-  //     while(!Thread.currentThread().isInterrupted()) {
-  //       long start = System.nanoTime();
-  //       // String[] string_frames = pop3(Integer.MAX_VALUE).split("#");
-  //       String[] string_frames = pop3(10000).split("#");
-  //
-  //       for (String frame: string_frames)
-  //         if (frame.length() > 0)
-  //           frames.add(new ASGCTFrame(frame));
-  //       elapsed += System.nanoTime() - start;
-  //
-  //       try {
-  //         Thread.sleep(100);
-  //       } catch (InterruptedException e) {
-  //         Thread.currentThread().interrupt();
-  //       }
-  //     }
-  //
-  //     // elapsed /= 1000000;
-  //
-  //     // if (elapsed > 0) {
-  //     System.out.println(frames.size() + " / " + elapsed / 1000000 + "ms = " + frames.size() * 1000000 / elapsed + " traces/ms collected!");
-  //     // }
-  //   }
-  // };
+  public static ASGCTFrame[] fetch() {
+    ArrayList<ASGCTFrame> records = new ArrayList<ASGCTFrame>();
+    String raw_record = pop();
+    if (raw_record.length() > 0) {
+      String[] record_arr = raw_record.split("#");
+      for (String record: record_arr)
+        records.add(new ASGCTFrame(record));
+    }
+
+    return records.toArray(new ASGCTFrame[records.size()]);
+  }
+
+  static Runnable profiler = new Runnable() {
+    @Override
+    public void run() {
+      int i = 0;
+      int records_size = 0;
+      long elapsed = 0;
+
+      while(!Thread.currentThread().isInterrupted()) {
+        i++;
+
+        long start = System.nanoTime();
+
+        List<ASGCTFrame> records = Arrays.asList(fetch());
+        records_size += records.size();
+
+        long total = System.nanoTime() - start;
+        elapsed += total;
+
+        try {
+          Thread.sleep(1);
+        } catch (Exception e) {
+          Thread.currentThread().interrupt();
+        }
+      }
+
+      System.out.println(i + ", " + records_size + ", " + elapsed);
+
+      System.out.println("average time of " + (double)elapsed / 1000000 / i + " ms");
+      System.out.println("rate of " + (double)records_size / elapsed / 1000000 + " per ms");
+    }
+  };
 
 	public static void main(String[] args) throws IOException, InterruptedException {
     NativeUtils.loadLibraryFromJar("/asgct/liblagent.so");
 
-    while(true) {
-      pop();
-    // for(int i = 0; i < 10; i++) {
-      // Thread thread = new Thread(profiler);
-      // thread.start();
-      //
-      // Thread.sleep(1000);
+    for(int i = 0; i < 10; i++) {
+      Thread thread = new Thread(profiler);
+      // Thread thread2 = new Thread(profiler);
+      thread.start();
+      // thread2.start();
 
-      // long elapsed = System.nanoTime();
-      // // String[] string_frames = pop3(Integer.MAX_VALUE).split("#");
-      // String[] string_frames = pop().split("#");
-      //
-      // ArrayList<ASGCTFrame> frames = new ArrayList<ASGCTFrame>();
-      // for (String frame: string_frames)
-      //   if (frame.length() > 0) {
-      //     // System.out.println(frame);
-      //     frames.add(new ASGCTFrame(frame));
-      //   }
-      //
-      // elapsed = System.nanoTime() - elapsed;
-      //
-      // if (frames.size() > 0)
-      //   System.out.println(frames.size() + " / " + elapsed / 1000000.0 + "ms = " + frames.size() * 1000000.0 / elapsed + " traces/ms collected!");
-      // for (ASGCTFrame frame: frames)
-      //   System.out.println(frame);
+      Thread.sleep(1000);
 
-      // System.out.println("interrupting...");
-      // thread.interrupt();
-      // thread.join();
+      System.out.println("interrupting...");
+      thread.interrupt();
+      // thread2.interrupt();
+      thread.join();
+      // thread2.join();
     }
   }
 }

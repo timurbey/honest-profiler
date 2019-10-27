@@ -14,31 +14,40 @@ struct ASGCTFrame {
   long timestamp;
   long id;
   string name;
-  vector<string> trace;
+  string trace;
+
+  ASGCTFrame() {
+      this->timestamp = 0;
+      this->id = 0;
+      this->trace = "";
+  }
 };
 
 class BufferReader : public QueueListener {
 
 public:
-    explicit BufferReader(jvmtiEnv *jvmti) : jvmti_(jvmti) { }
-
-    virtual void record(const timespec &ts, const JVMPI_CallTrace &trace, ThreadBucketPtr info = ThreadBucketPtr(nullptr));
+    explicit BufferReader(jvmtiEnv *jvmti) : jvmti_(jvmti), data_size(0) { }
 
     int size();
 
-    ASGCTFrame pop();
-
     bool empty();
 
+    virtual void record(const timespec &ts, const JVMPI_CallTrace &trace, ThreadBucketPtr info = ThreadBucketPtr(nullptr));
+
+    ASGCTFrame pop();
+
+
 private:
-  jvmtiEnv *const jvmti_;
+    jvmtiEnv *const jvmti_;
 
-  queue<long> timestamps;
-  queue<long> ids;
-  queue<string> names;
-  queue<vector<jmethodID>> traces;
+    std::atomic<int> data_size;
 
-  string lookUpMethod(jmethodID);
+    queue<long> timestamps;
+    queue<long> ids;
+    queue<string> names;
+    queue<vector<jmethodID>> traces;
+
+    string lookUpMethod(jmethodID);
 };
 
 extern void setReader(JNIEnv *, BufferReader *);
