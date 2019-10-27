@@ -83,29 +83,21 @@ public class ASGCTReader {
         }
       }
 
-      System.out.println(i + ", " + records_size + ", " + elapsed);
-
-      System.out.println("average time of " + (double)elapsed / 1000000 / i + " ms");
-      System.out.println("rate of " + (double)records_size / elapsed / 1000000 + " per ms");
+      System.out.println("calls: " + i + ", records: " + records_size + ", ms: " + elapsed / 1000000);
     }
   };
 
 	public static void main(String[] args) throws IOException, InterruptedException {
     NativeUtils.loadLibraryFromJar("/asgct/liblagent.so");
 
-    for(int i = 0; i < 10; i++) {
+    while(true) {
       Thread thread = new Thread(profiler);
-      // Thread thread2 = new Thread(profiler);
       thread.start();
-      // thread2.start();
 
       Thread.sleep(1000);
 
-      System.out.println("interrupting...");
       thread.interrupt();
-      // thread2.interrupt();
       thread.join();
-      // thread2.join();
     }
   }
 }
