@@ -18,7 +18,9 @@
 	</target>
 
 	<target name="hp" depends="setup" description="compile chappie source">
-		<exec command="make lagent"/>
+		<exec executable="make">
+			<arg value="lagent"/>
+		</exec>
 	</target>
 
 	<target name="compile" depends="setup" description="compile chappie source">
