@@ -4,13 +4,9 @@
 #include <thread>
 #include <jni.h>
 
-int BufferReader::size() {
-  return data_size.load(std::memory_order_relaxed);
-}
+int BufferReader::size() { return data_size.load(std::memory_order_relaxed); }
 
-bool BufferReader::empty() {
-  return data_size.load(std::memory_order_relaxed) == 0;
-}
+bool BufferReader::empty() { return data_size.load(std::memory_order_relaxed) == 0; }
 
 void BufferReader::record(const timespec &ts, const JVMPI_CallTrace &trace, ThreadBucketPtr info) {
   if (info.defined()) {
@@ -59,20 +55,27 @@ ASGCTFrame BufferReader::pop() {
 }
 
 string BufferReader::lookUpMethod(jmethodID method_id) {
-  string method;
+    // chopped up version of the frame look up in log writer
+    JvmtiScopedPtr<char> methodName(jvmti_), methodSignature(jvmti_), methodGenericSignature(jvmti_);
 
-  JvmtiScopedPtr<char> methodName(jvmti_), methodSignature(jvmti_), methodGenericSignature(jvmti_);
+    JVMTI_ERROR_CLEANUP_RET(
+      jvmti_->GetMethodName(method_id, methodName.GetRef(), methodSignature.GetRef(), methodGenericSignature.GetRef()),
+      "", { methodName.AbandonBecauseOfError(); methodSignature.AbandonBecauseOfError(); methodGenericSignature.AbandonBecauseOfError(); }
+    );
 
-  jvmti_->GetMethodName(method_id, methodName.GetRef(), methodSignature.GetRef(), methodGenericSignature.GetRef());
+    jclass declaring_class;
+    JVMTI_ERROR_RET(jvmti_->GetMethodDeclaringClass(method_id, &declaring_class), "");
 
-  jclass declaring_class;
-  jvmti_->GetMethodDeclaringClass(method_id, &declaring_class);
+    JvmtiScopedPtr<char> classSignature(jvmti_), classSignatureGeneric(jvmti_);
+    JVMTI_ERROR_CLEANUP_RET(
+        jvmti_->GetClassSignature(declaring_class, classSignature.GetRef(), classSignatureGeneric.GetRef()),
+        "", { classSignature.AbandonBecauseOfError(); classSignatureGeneric.AbandonBecauseOfError(); }
+    );
 
-  JvmtiScopedPtr<char> classSignature(jvmti_), classSignatureGeneric(jvmti_);
-  jvmti_->GetClassSignature(declaring_class, classSignature.GetRef(), classSignatureGeneric.GetRef());
+    string method;
+    method.append(classSignature.Get()).append(methodName.Get());
 
-  method.append(classSignature.Get()).append(methodName.Get());
-  return method;
+    return method;
 }
 
 extern void setReader(JNIEnv *env, BufferReader *reader) {
@@ -103,9 +106,9 @@ extern "C" JNIEXPORT jstring JNICALL Java_asgct_ASGCTReader_pop(JNIEnv *env, jcl
   while (!reader->empty()) {
       ASGCTFrame frame = reader->pop();
 
-      if (frame.timestamp == 0 || (frame.timestamp == last.timestamp && frame.id == last.id && frame.trace == last.trace) || frame.trace.size() == 0) {
+      // check if the frame is garbage or a duplicate
+      if (frame.timestamp == 0 || (frame.timestamp == last.timestamp && frame.id == last.id && frame.trace == last.trace) || frame.trace.size() == 0)
         continue;
-      }
 
       frames.append(std::to_string(frame.timestamp)).append(",");
       frames.append(std::to_string(frame.id)).append(",");

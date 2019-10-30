@@ -26,6 +26,7 @@ public class ASGCTReader {
       this.timestamp = Long.parseLong(items[0]);
       this.id = Long.parseLong(items[1]);
       this.name = items[2];
+
       this.trace = items[3].split("@");
 
       for (int i = 0; i < trace.length; i++)
@@ -51,8 +52,11 @@ public class ASGCTReader {
     String raw_record = pop();
     if (raw_record.length() > 0) {
       String[] record_arr = raw_record.split("#");
-      for (String record: record_arr)
-        records.add(new ASGCTFrame(record));
+      for (String record: record_arr) {
+        try {
+          records.add(new ASGCTFrame(record));
+        } catch (Exception e) { }
+      }
     }
 
     return records.toArray(new ASGCTFrame[records.size()]);
@@ -87,10 +91,41 @@ public class ASGCTReader {
     }
   };
 
+  // static Runnable task = new Runnable() {
+  //   @Override
+  //   public void run() {
+  //     int i = 0;
+  //
+  //     for (int i = 0; i < 1000; i++) {
+  //       i = i + i;
+  //     }
+  //     while(!Thread.currentThread().isInterrupted()) {
+  //       i++;
+  //
+  //       long start = System.nanoTime();
+  //
+  //       List<ASGCTFrame> records = Arrays.asList(fetch());
+  //       records_size += records.size();
+  //
+  //       long total = System.nanoTime() - start;
+  //       elapsed += total;
+  //
+  //       try {
+  //         Thread.sleep(1);
+  //       } catch (Exception e) {
+  //         Thread.currentThread().interrupt();
+  //       }
+  //     }
+  //
+  //     System.out.println("calls: " + i + ", records: " + records_size + ", ms: " + elapsed / 1000000);
+  //   }
+  // };
+
 	public static void main(String[] args) throws IOException, InterruptedException {
     NativeUtils.loadLibraryFromJar("/asgct/liblagent.so");
 
-    while(true) {
+    // while(true) {
+    for(int i = 0; i < 20; i++) {
       Thread thread = new Thread(profiler);
       thread.start();
 
