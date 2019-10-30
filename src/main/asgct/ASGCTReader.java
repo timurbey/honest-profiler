@@ -10,9 +10,6 @@ public class ASGCTReader {
   public static long reader_ptr;
 
   // pops the top off the underlying buffer
-  // private native static ASGCTFrame[] pop(long size);
-  // private native static Object[] pop2(long size);
-  // private native static String pop3(long size);
   private native static String pop();
 
   public static class ASGCTFrame {
