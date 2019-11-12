@@ -56,21 +56,50 @@ ASGCTFrame BufferReader::pop() {
 
 string BufferReader::lookUpMethod(jmethodID method_id) {
     // chopped up version of the frame look up in log writer
+    jint error;
     JvmtiScopedPtr<char> methodName(jvmti_), methodSignature(jvmti_), methodGenericSignature(jvmti_);
 
-    JVMTI_ERROR_CLEANUP_RET(
-      jvmti_->GetMethodName(method_id, methodName.GetRef(), methodSignature.GetRef(), methodGenericSignature.GetRef()),
-      "", { methodName.AbandonBecauseOfError(); methodSignature.AbandonBecauseOfError(); methodGenericSignature.AbandonBecauseOfError(); }
-    );
+    error = jvmti_->GetMethodName(method_id, methodName.GetRef(), methodSignature.GetRef(), methodGenericSignature.GetRef());
+    if (error != JVMTI_ERROR_NONE) {
+        methodName.AbandonBecauseOfError();
+        methodSignature.AbandonBecauseOfError();
+        methodGenericSignature.AbandonBecauseOfError();
+        if (error == JVMTI_ERROR_INVALID_METHODID) {
+            static int once = 0;
+            if (!once) {
+                once = 1;
+                logError("One of your monitoring interfaces "
+                "is having trouble resolving its stack traces.  "
+                "GetMethodName on a jmethodID involved in a stacktrace "
+                "resulted in an INVALID_METHODID error which usually "
+                "indicates its declaring class has been unloaded.\n");
+                logError("Unexpected JVMTI error %d in GetMethodName\n", error);
+            }
+        }
+        return "";
+    }
 
+    // This block is leaky; why ???
+    // Get class name, put it in signature_ptr
     jclass declaring_class;
-    JVMTI_ERROR_RET(jvmti_->GetMethodDeclaringClass(method_id, &declaring_class), "");
+    JVMTI_ERROR_RET(
+        jvmti_->GetMethodDeclaringClass(method_id, &declaring_class), "");
 
     JvmtiScopedPtr<char> classSignature(jvmti_), classSignatureGeneric(jvmti_);
     JVMTI_ERROR_CLEANUP_RET(
         jvmti_->GetClassSignature(declaring_class, classSignature.GetRef(), classSignatureGeneric.GetRef()),
-        "", { classSignature.AbandonBecauseOfError(); classSignatureGeneric.AbandonBecauseOfError(); }
-    );
+        "", { classSignature.AbandonBecauseOfError(); classSignatureGeneric.AbandonBecauseOfError(); });
+
+    // Get source file, put it in source_name_ptr
+    char *fileName;
+    JvmtiScopedPtr<char> source_name_ptr(jvmti_);
+    static char file_unknown[] = "UnknownFile";
+    if (JVMTI_ERROR_NONE != jvmti_->GetSourceFileName(declaring_class, source_name_ptr.GetRef())) {
+        source_name_ptr.AbandonBecauseOfError();
+        fileName = file_unknown;
+    } else {
+        fileName = source_name_ptr.Get();
+    }
 
     string method;
     method.append(classSignature.Get()).append(methodName.Get());

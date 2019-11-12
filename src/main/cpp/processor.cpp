@@ -88,7 +88,7 @@ bool Processor::start(JNIEnv *jniEnv) {
     TRACE(Processor, kTraceProcessorStart);
     jvmtiError result;
 
-    setReader(jniEnv, &reader_);
+    // setReader(jniEnv, &reader_);
 
     std::cout << "Starting sampling\n";
     isRunning_.store(true, std::memory_order_relaxed); // sequential
@@ -128,17 +128,23 @@ void Processor::handle(JNIEnv *jniEnv, const timespec& ts, ThreadBucketPtr threa
     // sample data structure
     STATIC_ARRAY(frames, JVMPI_CallFrame, config.maxFramesToCapture, MAX_FRAMES_TO_CAPTURE);
 
-    JVMPI_CallTrace trace;
-    trace.frames = frames;
+    // std::cout << config.samples << "!\n";
+    for (int i = 0; i < config.samples; ++i) {
+      // std::cout << i << ", ";
+      JVMPI_CallTrace trace;
+      trace.frames = frames;
 
-    if (jniEnv == nullptr) {
-        trace.num_frames = -3; // ticks_unknown_not_Java
-    } else {
-        trace.env_id = jniEnv;
-        ASGCTType asgct = Asgct::GetAsgct();
-        (*asgct)(&trace, config.maxFramesToCapture, context);
+      if (jniEnv == nullptr) {
+          trace.num_frames = -3; // ticks_unknown_not_Java
+      } else {
+          trace.env_id = jniEnv;
+          ASGCTType asgct = Asgct::GetAsgct();
+          (*asgct)(&trace, config.maxFramesToCapture, context);
+          // i = config.samples;
+      }
+
+      // log all samples, failures included, let the post processing sift through the data
+      buffer.push(ts, trace, std::move(threadInfo));
     }
-
-    // log all samples, failures included, let the post processing sift through the data
-    buffer.push(ts, trace, std::move(threadInfo));
+    // std::cout << std::endl;
 }

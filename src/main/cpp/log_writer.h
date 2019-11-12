@@ -24,7 +24,7 @@ public:
             const char *method_name) = 0;
 
     virtual void recordNewMethod(const map::HashType methodId, const char *fileName,
-            const char *className, const char *genericClassName, 
+            const char *className, const char *genericClassName,
             const char *methodName, const char *methodSignature, const char *genericMethodSignature) = 0;
 
     virtual ~MethodListener() {
@@ -35,7 +35,7 @@ typedef bool (*GetFrameInformation)(const JVMPI_CallFrame &frame, MethodListener
 
 const size_t FIFO_SIZE = 10;
 const byte TRACE_START = 1; // maintain backward compatibility
-const byte TRACE_WITH_TIME = 11; 
+const byte TRACE_WITH_TIME = 11;
 const byte FRAME_BCI_ONLY = 2; // maintain backward compatibility
 const byte FRAME_FULL = 21;
 const byte NEW_METHOD = 3; // maintain backward compatibility
@@ -70,18 +70,19 @@ public:
     void recordFrame(const jint bci, method_id methodId);
 
     bool lookupFrameInformation(const JVMPI_CallFrame &frame);
+    bool lookupFrameInformation2(const JVMPI_CallFrame &frame, char *fqn);
 
     virtual void recordNewMethod(method_id methodId, const char *file_name,
             const char *class_name, const char *method_name);
 
-    virtual void recordNewMethod(const map::HashType methodId, const char *fileName, 
-            const char *className, const char *genericClassName, 
+    virtual void recordNewMethod(const map::HashType methodId, const char *fileName,
+            const char *className, const char *genericClassName,
             const char *methodName, const char *methodSignature, const char *genericMethodSignature);
 
 private:
     ofstream file;
     ostream& output_;
-    GetFrameInformation frameInfoFoo; 
+    GetFrameInformation frameInfoFoo;
 
     jvmtiEnv *const jvmti_;
 

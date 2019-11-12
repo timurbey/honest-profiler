@@ -286,6 +286,8 @@ static void parseArguments(char *options, ConfigurationOptions &configuration) {
                 configuration.samplingIntervalMax = atoi(value);
             } else if (strstr(key, "interval") == key) {
                 configuration.samplingIntervalMin = configuration.samplingIntervalMax = atoi(value);
+            } else if (strstr(key, "samples") == key) {
+                configuration.samples = atoi(value);
             } else if (strstr(key, "logPath") == key) {
                 configuration.logFilePath.assign(value, STR_SIZE(value, next));
             } else if (strstr(key, "start") == key) {
@@ -297,7 +299,7 @@ static void parseArguments(char *options, ConfigurationOptions &configuration) {
             } else if (strstr(key, "maxFrames") == key) {
                 configuration.maxFramesToCapture = atoi(value);
             } else {
-                logError("WARN: Unknown configuration option: %s\n", key);
+                logError("WARN: Unknown configuration option: %s=%s\n", key, value);
             }
         }
     }

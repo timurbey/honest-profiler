@@ -159,8 +159,8 @@ void Profiler::configure() {
         } else {
             configuration_.logFilePath = liveConfiguration.logFilePath;
         }
-        // writer = std::unique_ptr<LogWriter>(new LogWriter(liveConfiguration.logFilePath, jvmti_));
-        reader = std::unique_ptr<BufferReader>(new BufferReader(jvmti_));
+        writer = std::unique_ptr<LogWriter>(new LogWriter(liveConfiguration.logFilePath, jvmti_));
+        // reader = std::unique_ptr<BufferReader>(new BufferReader(jvmti_));
     }
 
     needsUpdate = needsUpdate ||
@@ -171,8 +171,9 @@ void Profiler::configure() {
         configuration_.maxFramesToCapture = liveConfiguration.maxFramesToCapture;
         configuration_.samplingIntervalMin = liveConfiguration.samplingIntervalMin;
         configuration_.samplingIntervalMax = liveConfiguration.samplingIntervalMax;
-        // processor = std::unique_ptr<Processor>(new Processor(jvmti_, *writer.get(), configuration_));
-        processor = std::unique_ptr<Processor>(new Processor(jvmti_, *reader.get(), configuration_));
+        configuration_.samples = liveConfiguration.samples;
+        processor = std::unique_ptr<Processor>(new Processor(jvmti_, *writer.get(), configuration_));
+        // processor = std::unique_ptr<Processor>(new Processor(jvmti_, *reader.get(), configuration_));
     }
     reloadConfig = false;
 }

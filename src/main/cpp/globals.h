@@ -23,6 +23,7 @@ Profiler *getProfiler();
 void setProfiler(Profiler *p);
 
 const int DEFAULT_SAMPLING_INTERVAL = 1;
+const int DEFAULT_SAMPLES = 1;
 const int DEFAULT_MAX_FRAMES_TO_CAPTURE = 128;
 const int MAX_FRAMES_TO_CAPTURE = 2048;
 
@@ -41,6 +42,7 @@ char *safe_copy_string(const char *value, const char *next);
 struct ConfigurationOptions {
     /** Interval in microseconds */
     int samplingIntervalMin, samplingIntervalMax;
+    int samples;
     std::string logFilePath;
     std::string host;
     std::string port;
@@ -50,6 +52,7 @@ struct ConfigurationOptions {
     ConfigurationOptions() :
             samplingIntervalMin(DEFAULT_SAMPLING_INTERVAL),
             samplingIntervalMax(DEFAULT_SAMPLING_INTERVAL),
+            samples(DEFAULT_SAMPLES),
             logFilePath(""),
             host(""),
             port(""),
@@ -60,6 +63,7 @@ struct ConfigurationOptions {
     ConfigurationOptions(const ConfigurationOptions &config) :
             samplingIntervalMin(config.samplingIntervalMin),
             samplingIntervalMax(config.samplingIntervalMax),
+            samples(config.samples),
             logFilePath(config.logFilePath),
             host(config.host),
             port(config.port),

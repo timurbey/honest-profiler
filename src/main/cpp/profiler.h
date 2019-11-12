@@ -72,8 +72,8 @@ public:
         : jvm_(jvm), jvmti_(jvmti), tMap_(tMap), liveConfiguration(configuration), ongoingConf(false) {
         pid = (long) getpid();
 
-        // writer = nullptr;
-        reader = nullptr;
+        writer = nullptr;
+        // reader = nullptr;
         processor = nullptr;
 
         // explicitly call setters to validate input params
@@ -118,8 +118,8 @@ private:
     ConfigurationOptions configuration_;
     ConfigurationOptions liveConfiguration;
 
-    // std::unique_ptr<LogWriter> writer;
-    std::unique_ptr<BufferReader> reader;
+    std::unique_ptr<LogWriter> writer;
+    // std::unique_ptr<BufferReader> reader;
     std::unique_ptr<Processor> processor;
 
     bool reloadConfig;

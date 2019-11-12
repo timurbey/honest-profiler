@@ -1,6 +1,7 @@
 #include <cstdlib>
 
 #include "log_writer.h"
+#include <math.h>
 
 using std::copy;
 
@@ -12,8 +13,8 @@ bool isLittleEndian() {
 
 static bool IS_LITTLE_ENDIAN = isLittleEndian();
 
-LogWriter::LogWriter(std::string &fileName, jvmtiEnv *jvmti) : 
-    file(fileName, std::ofstream::out | std::ofstream::binary), output_(this->file), 
+LogWriter::LogWriter(std::string &fileName, jvmtiEnv *jvmti) :
+    file(fileName, std::ofstream::out | std::ofstream::binary), output_(this->file),
     frameInfoFoo(NULL), jvmti_(jvmti) {
     if (output_.fail()) {
         // The JVM will still continue to run though; could call abort() to terminate the JVM abnormally.
@@ -102,13 +103,19 @@ void LogWriter::record(const JVMPI_CallTrace &trace, ThreadBucketPtr info) {
 }
 
 void LogWriter::record(const timespec &ts, const JVMPI_CallTrace &trace, ThreadBucketPtr info) {
-    recordTraceStart(trace.num_frames, (map::HashType)trace.env_id, ts, info);
+  //recordTraceStart(trace.num_frames, (map::HashType)trace.env_id, ts, info);
+
+  if (info.defined()) {
+    long ms = ts.tv_sec * 1000;
+    ms += round(ts.tv_nsec / 1.0e6);
+    output_ << info->name.c_str() << "," << ms << "," << info->jid << ",";
 
     for (int i = 0; i < trace.num_frames; i++) {
         JVMPI_CallFrame frame = trace.frames[i];
-        method_id methodId = (method_id) frame.method_id;
+        // method_id methodId = (method_id) frame.method_id;
 
         // lineno is in fact BCI, needs converting to lineno
+        /*
         jint bci = frame.lineno;
         if (bci > 0) {
             jint lineno = getLineNo(bci, frame.method_id);
@@ -118,7 +125,15 @@ void LogWriter::record(const timespec &ts, const JVMPI_CallTrace &trace, ThreadB
             recordFrame(bci, methodId);
         }
         inspectMethod(methodId, frame);
+        */
+
+        char fqn[256];
+        if (lookupFrameInformation2(frame, (char *)fqn)) {
+          output_ << fqn << ";";
+        }
     }
+    output_ << "end" << std::endl;
+  }
 }
 
 void LogWriter::inspectMethod(const method_id methodId, const JVMPI_CallFrame &frame) {
@@ -128,7 +143,7 @@ void LogWriter::inspectMethod(const method_id methodId, const JVMPI_CallFrame &f
 
     knownMethods.insert(methodId);
 
-    if (frameInfoFoo) { 
+    if (frameInfoFoo) {
         frameInfoFoo(frame, *this);
     } else {
         lookupFrameInformation(frame);
@@ -168,7 +183,7 @@ void LogWriter::recordTraceStart(const jint numFrames, map::HashType envHash, Th
 
 void LogWriter::recordTraceStart(const jint numFrames, map::HashType envHash, const timespec &ts, ThreadBucketPtr& info) {
     map::HashType threadId = -envHash; // mark unrecognized threads with negative id's
-    
+
     inspectThread(threadId, info);
 
     output_.put(TRACE_WITH_TIME);
@@ -211,8 +226,8 @@ void LogWriter::recordNewMethod(const map::HashType methodId, const char *fileNa
     output_.flush();
 }
 
-void LogWriter::recordNewMethod(const map::HashType methodId, const char *fileName, 
-    const char *className, const char *genericClassName, 
+void LogWriter::recordNewMethod(const map::HashType methodId, const char *fileName,
+    const char *className, const char *genericClassName,
     const char *methodName, const char *methodSignature, const char *genericMethodSignature) {
     output_.put(NEW_METHOD_SIGNATURE);
     writeValue(methodId);
@@ -281,4 +296,71 @@ bool LogWriter::lookupFrameInformation(const JVMPI_CallFrame &frame) {
     );
 
     return true;
+}
+
+bool LogWriter::lookupFrameInformation2(const JVMPI_CallFrame &frame, char *fqn) {
+  jint error;
+  JvmtiScopedPtr<char> methodName(jvmti_), methodSignature(jvmti_), methodGenericSignature(jvmti_);
+
+  error = jvmti_->GetMethodName(frame.method_id, methodName.GetRef(), methodSignature.GetRef(), methodGenericSignature.GetRef());
+  if (error != JVMTI_ERROR_NONE) {
+      methodName.AbandonBecauseOfError();
+      methodSignature.AbandonBecauseOfError();
+      methodGenericSignature.AbandonBecauseOfError();
+      if (error == JVMTI_ERROR_INVALID_METHODID) {
+          static int once = 0;
+          if (!once) {
+              once = 1;
+              logError("One of your monitoring interfaces "
+              "is having trouble resolving its stack traces.  "
+              "GetMethodName on a jmethodID involved in a stacktrace "
+              "resulted in an INVALID_METHODID error which usually "
+              "indicates its declaring class has been unloaded.\n");
+              logError("Unexpected JVMTI error %d in GetMethodName\n", error);
+          }
+      }
+      return false;
+  }
+
+  // Get class name, put it in signature_ptr
+  jclass declaring_class;
+  JVMTI_ERROR_RET(
+      jvmti_->GetMethodDeclaringClass(frame.method_id, &declaring_class), false);
+
+  JvmtiScopedPtr<char> classSignature(jvmti_), classSignatureGeneric(jvmti_);
+  JVMTI_ERROR_CLEANUP_RET(
+      jvmti_->GetClassSignature(declaring_class, classSignature.GetRef(), classSignatureGeneric.GetRef()),
+      false, { classSignature.AbandonBecauseOfError(); classSignatureGeneric.AbandonBecauseOfError(); });
+
+  char *p = classSignature.Get();
+  while (*p != 0) {
+    if (*p == '/' || *p == ';') *p = '.';
+      ++p;
+  }
+  sprintf(fqn, "%s%s", classSignature.Get()+1, methodName.Get());
+
+  /*
+  // Get source file, put it in source_name_ptr
+  char *fileName;
+  JvmtiScopedPtr<char> source_name_ptr(jvmti_);
+  static char file_unknown[] = "UnknownFile";
+  if (JVMTI_ERROR_NONE != jvmti_->GetSourceFileName(declaring_class, source_name_ptr.GetRef())) {
+      source_name_ptr.AbandonBecauseOfError();
+      fileName = file_unknown;
+  } else {
+      fileName = source_name_ptr.Get();
+  }
+
+  recordNewMethod(
+      (method_id) frame.method_id,
+      fileName,
+      classSignature.Get(),
+      classSignatureGeneric.Get(),
+      methodName.Get(),
+      methodSignature.Get(),
+      methodGenericSignature.Get()
+  );
+  */
+
+  return true;
 }
